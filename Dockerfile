@@ -1,6 +1,8 @@
 FROM node:16.13.1-alpine
 
-COPY . /app
+WORKDIR /usr/app
+
+COPY . /usr/app
 
 RUN npm install
 
