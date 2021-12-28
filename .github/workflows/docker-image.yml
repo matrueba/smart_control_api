@@ -14,7 +14,7 @@ jobs:
 
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: arm64v8/ubuntu
     permissions:
       contents: read
       packages: write
