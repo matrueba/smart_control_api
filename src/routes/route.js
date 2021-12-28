@@ -5,7 +5,6 @@ const express = require('express')
 const controlEmitter = require('../emitter').controlEmitter
 const mqttEmitter = require('../emitter').mqttEmitter
 const asyncify = require('express-asyncify')
-const config = require('../../config/config.json')
 const server = require('../server')
 
 const route = asyncify(express.Router())
