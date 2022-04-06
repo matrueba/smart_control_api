@@ -2,10 +2,11 @@
 
 const MqttClient = require('./src/mqttClient')
 const server = require('./src/server')
-const autoControl = require('./src/control')
+const MainContol = require('./src/control')
 
 const mqttClient = new MqttClient()
+const control = new MainContol()
 
-autoControl.run()
+control.run()
 server.run()
 mqttClient.start()

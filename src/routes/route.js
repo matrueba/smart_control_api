@@ -33,7 +33,7 @@ route.post('/control_auto/:deveui',  async (req, res, next) => {
   debug(`A request has come to /control/${deveui}`)
   debug(`Request device deveui: ${deveui}`)
   try {
-    const message = {"type": "control_auto", "data": req.body.control_auto}
+    const message = {"type": "control_auto", "data": req.body}
     controlEmitter.emit('server_request', message)
   } catch (e) {
     next(e)
@@ -83,17 +83,17 @@ route.post('/stop_pump/:deveui',  async (req, res, next) => {
   res.send(200)
 })
 
-route.post('/time_start/:deveui/', async (req, res, next) => {
-  const { deveui } = req.params
-  debug(`request to /time_start/${deveui}`)
-  debug(`Request device deveui: ${deveui}`)
-  try {
-    const message = {"type": "time_start", "data": req.body.time_ms}
-    controlEmitter.emit('server_request', message)
-  } catch (e) {
-    return next(e)
-  }
-  res.send(200)
-})
+// route.post('/time_start/:deveui/', async (req, res, next) => {
+//   const { deveui } = req.params
+//   debug(`request to /time_start/${deveui}`)
+//   debug(`Request device deveui: ${deveui}`)
+//   try {
+//     const message = {"type": "time_start", "data": req.body.time_ms}
+//     controlEmitter.emit('server_request', message)
+//   } catch (e) {
+//     return next(e)
+//   }
+//   res.send(200)
+// })
 
 module.exports = route
