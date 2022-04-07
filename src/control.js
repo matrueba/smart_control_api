@@ -130,6 +130,13 @@ class MainContol{
             }
         }
     }
+
+    periodicPublicStatus(){
+        //Publish internal configuration and status to monitor in apps
+    }
+
+
+
 }
 
     
