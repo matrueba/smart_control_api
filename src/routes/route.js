@@ -46,16 +46,8 @@ route.post('/start_pump/:deveui',  async (req, res, next) => {
   debug(`A request has come to /start_pump/${deveui}`)
   debug(`Request device deveui: ${deveui}`)
   try {
-    const message = {
-      "payload": {
-          "timestamp": Date.now(),
-          "token": process.env.TOKEN,
-          "source": "system_control",
-          "command": "start_pump"
-      },
-      "topic": "SERVER/COMMAND"
-  }
-    mqttEmitter.emit('publish_mqtt', message)
+    const message = {"type": "start_pump", "data": ""}
+    controlEmitter.emit('server_request', message)
   } catch (e) {
     next(e)
   }
@@ -67,33 +59,13 @@ route.post('/stop_pump/:deveui',  async (req, res, next) => {
   debug(`A request has come to /stop_pump/${deveui}`)
   debug(`Request device deveui: ${deveui}`)
   try {
-    const message = {
-      "payload": {
-        "timestamp": Date.now(),
-        "token": process.env.TOKEN,
-        "source": "system_control",
-        "command": "stop_pump"
-    },
-      "topic": "SERVER/COMMAND"
-  }
-    mqttEmitter.emit('publish_mqtt', message)
+    const message = {"type": "stop_pump", "data": ""}
+    controlEmitter.emit('server_request', message)
   } catch (e) {
     next(e)
   }
   res.send(200)
 })
 
-// route.post('/time_start/:deveui/', async (req, res, next) => {
-//   const { deveui } = req.params
-//   debug(`request to /time_start/${deveui}`)
-//   debug(`Request device deveui: ${deveui}`)
-//   try {
-//     const message = {"type": "time_start", "data": req.body.time_ms}
-//     controlEmitter.emit('server_request', message)
-//   } catch (e) {
-//     return next(e)
-//   }
-//   res.send(200)
-// })
 
 module.exports = route

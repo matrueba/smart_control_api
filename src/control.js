@@ -16,8 +16,8 @@ class MainContol{
         this.start_hour = 0        //Define the hour from when pump can be started
         this.start_minutes = 0     //Define the minutes from when pump can be started
         this.start_pump_date = 0 //Define the time when pump started last time
-        this.max_pump_time = 0   //Define the maximum time the pump can be running
-        this.min_time_2_restart = 86400  //Define the minimum time since pump were started to enable again
+        this.max_pump_time = parseInt(process.env.MAX_PUMP_TIME)   //Define the maximum time the pump can be running
+        this.min_time_2_restart = parseInt(process.env.MIN_TIME_TO_RESTART)  //Define the minimum time since pump were started to enable again
     }
 
     run(){
@@ -34,9 +34,11 @@ class MainContol{
         //event triggered when change in pump status is received
         mqttEmitter.on('pump_status', message => {
             debug(`Pump status info received: ${message.pump_started}`)
-            this.pump_started = message.pump_started
+            this.pump_started = message.pump_started         
             if (this.pump_started === true){
                 this.start_pump_date = new Date()
+            }else if (this.pump_started === false){
+                this.enable_start = false
             }
         })
 
@@ -55,6 +57,34 @@ class MainContol{
                         this.control_auto = false 
                     }
                 break
+                case "start_pump":
+                    if (this.control_auto == false){
+                        const message = {
+                            "payload": {
+                                "timestamp": Date.now(),
+                                "token": process.env.TOKEN,
+                                "source": "system_control",
+                                "command": "start_pump"
+                            },
+                            "topic": "SERVER/COMMAND"
+                        }
+                        mqttEmitter.emit('publish_mqtt', message)
+                    }
+                break
+                case "stop_pump":
+                    if (this.control_auto == false){
+                        const message = {
+                            "payload": {
+                            "timestamp": Date.now(),
+                            "token": process.env.TOKEN,
+                            "source": "system_control",
+                            "command": "stop_pump"
+                        },
+                            "topic": "SERVER/COMMAND"
+                        }
+                        mqttEmitter.emit('publish_mqtt', message)
+                    }
+                break
             }
         })
 
@@ -68,8 +98,10 @@ class MainContol{
     restart_enable(){
         //Enable the capability to start pup once current time is above to min time to restart
         const current_date = new Date()
-        if (current_date >= this.start_pump_date + this.min_time_2_restart){
-            this.enable_start = true
+        if ((this.pump_started == false) && (this.enable_start == false)){
+            if (current_date >=  new Date(this.start_pump_date.getTime() + this.min_time_2_restart*1000)){
+                this.enable_start = true
+            }
         }
     }
 
@@ -133,12 +165,15 @@ class MainContol{
 
     periodicPublicStatus(){
         //Publish internal configuration and status to monitor in apps
+        // is better take the information of the app directly from server
+        const statusMsg = {
+            "control_mode": this.control_auto === true ? "auto" : "manual",
+            "start_enable": this.enable_start,
+            "start_time": this.start_hour.toString() + ":" + this.start_minutes.toString(),
+            "pump_started": this.pump_started,
+            "max_pump_time": this.max_pump_time
+        }
     }
-
-
-
 }
-
-    
+  
 module.exports = MainContol
-

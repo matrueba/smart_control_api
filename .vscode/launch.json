@@ -14,7 +14,9 @@
             "program": "${workspaceFolder}/index.js",
             "env": { 
                 "MQTT_HOST": "192.168.0.10",
-                "TOKEN": "abcdefg"
+                "TOKEN": "abcdefg",
+                "MAX_PUMP_TIME": "30",
+                "MIN_TIME_TO_RESTART": "60" //86400 1 day
             }
         }
     ]
