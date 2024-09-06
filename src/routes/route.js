@@ -1,71 +1,99 @@
 'use strict'
-
 const debug = require('debug')('smartbox-api')
 const express = require('express')
-const controlEmitter = require('../emitter').controlEmitter
-const mqttEmitter = require('../emitter').mqttEmitter
-const asyncify = require('express-asyncify')
-const server = require('../server')
-
-const route = asyncify(express.Router())
+const MainContol = require('../control')
 
 
-route.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Authorization, X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Request-Method');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
-    res.header('Allow', 'GET, POST, OPTIONS, PUT, DELETE');
-    next();
-})
+class Router {
 
-route.get('/',  async (req, res, next) => {
-  debug('A request has come to /')
-  try{
-    const server = {"res": "API is running"}
-  } catch (e) {
-    next(e)
+  constructor(emitter) {
+    this.emitter = emitter
+    this.control = new MainContol(emitter)
+    this.router = express.Router()
+    this.router.use((req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*')
+      res.header('Access-Control-Allow-Headers', 'Authorization, X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Request-Method')
+      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE')
+      res.header('Allow', 'GET, POST, OPTIONS, PUT, DELETE')
+      next()
+    })
+
+    this.initializeRoutes()
+    this.control.run()
   }
-  res.send(server)
-})
 
-route.post('/control_auto/:deveui',  async (req, res, next) => {
-  const { deveui } = req.params
-  debug(`A request has come to /control/${deveui}`)
-  debug(`Request device deveui: ${deveui}`)
-  try {
-    const message = {"type": "control_auto", "data": req.body}
-    controlEmitter.emit('server_request', message)
-  } catch (e) {
-    next(e)
+  initializeRoutes() {
+    this.router.get('/', this.getStatus.bind(this))
+    this.router.post('/control_auto/:deveui', this.postControlAuto.bind(this))
+    this.router.post('/start_pump/:deveui', this.startPump.bind(this))
+    this.router.post('/stop_pump/:deveui', this.stopPump.bind(this))
+    this.router.get('/ground_humidity/:deveui', this.getGroundHumidity.bind(this))
   }
-  res.send(200)
-})
 
-route.post('/start_pump/:deveui',  async (req, res, next) => {
-  const { deveui } = req.params
-  debug(`A request has come to /start_pump/${deveui}`)
-  debug(`Request device deveui: ${deveui}`)
-  try {
-    const message = {"type": "start_pump", "data": ""}
-    controlEmitter.emit('server_request', message)
-  } catch (e) {
-    next(e)
+  async getStatus(req, res, next) {
+    debug('A request has come to /')
+    try{
+      const server = {"res": "API is running"}
+    } catch (e) {
+      next(e)
+    }
+    res.send(server)
   }
-  res.send(200)
-})
 
-route.post('/stop_pump/:deveui',  async (req, res, next) => {
-  const { deveui } = req.params
-  debug(`A request has come to /stop_pump/${deveui}`)
-  debug(`Request device deveui: ${deveui}`)
-  try {
-    const message = {"type": "stop_pump", "data": ""}
-    controlEmitter.emit('server_request', message)
-  } catch (e) {
-    next(e)
+  async postControlAuto(req, res, next){
+    const { deveui } = req.params
+    debug(`A request has come to /control/${deveui}`)
+    debug(`Request device deveui: ${deveui}`)
+    try {
+      const message = {"type": "control_auto", "data": req.body}
+      this.emitter.emit('server_request', message) //replace by direct function of control
+    } catch (e) {
+      next(e)
+    }
+    res.send(200)
   }
-  res.send(200)
-})
 
+  async startPump(req, res, next){
+    const { deveui } = req.params
+    debug(`A request has come to /start_pump/${deveui}`)
+    debug(`Request device deveui: ${deveui}`)
+    try {
+      const message = {"type": "start_pump", "data": ""}
+      this.emitter.emit('server_request', message)
+    } catch (e) {
+      next(e)
+    }
+    res.send(200)
+  }
 
-module.exports = route
+  async stopPump(req, res, next){
+    const { deveui } = req.params
+    debug(`A request has come to /stop_pump/${deveui}`)
+    debug(`Request device deveui: ${deveui}`)
+    try {
+      const message = {"type": "stop_pump", "data": ""}
+      this.emitter.emit('server_request', message)
+    } catch (e) {
+      next(e)
+    }
+    res.send(200)
+  }
+
+  async getGroundHumidity(req, res, next){
+    const { deveui } = req.params
+    debug(`A request has come to /ground_humidity/${deveui}`)
+    debug(`Request device deveui: ${deveui}`)
+    try {
+      const groundHumidityValue = this.control.last_ground_humidity_values[0]
+    } catch (e) {
+      next(e)
+    }
+    res.send(200)
+  } 
+
+  getRouter() {
+    return this.router
+  }
+}
+
+module.exports = Router

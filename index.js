@@ -1,12 +1,11 @@
 'use strict'
-
 const MqttClient = require('./src/mqttClient')
-const server = require('./src/server')
-const MainContol = require('./src/control')
+const Server = require('./src/server')
+const EventEmitter = require('events')
 
-const mqttClient = new MqttClient()
-const control = new MainContol()
+const emitter = new EventEmitter()
+const mqttClient = new MqttClient(emitter)
+const server = new Server(emitter)
 
-control.run()
 server.run()
 mqttClient.start()

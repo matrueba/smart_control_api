@@ -1,35 +1,50 @@
 'use strict'
-
 const http = require('http')
 const express = require('express')
 const chalk = require('chalk')
-const router = require('../src/routes/route')
 const debug = require('debug')('smartbox-api')
-const asyncify = require('express-asyncify')
+const Router = require('./routes/route')
 
 
-const port = process.env.PORT || 5000
-const app = asyncify(express())
-const server = http.createServer(app)
+class Server {
 
-app.use(express.urlencoded({ extended: true }))
-app.use(express.json())
-app.use('/api', router)
+  constructor(emitter) {
+    this.router = new Router(emitter)
+    this.port = process.env.PORT || 5000
+    this.app = express()
+    this.server = http.createServer(this.app)
 
-app.use((err, req, res, next) => {
-  debug(`Error: ${err.message}`)
-  if (err.message.match(/not found/)) {
-    return res.status(404).send({ error: err.message })
+    this.initializeMiddleware()
+    this.initializeRoutes()
+    this.initializeErrorHandling()
   }
 
-  res.status(500).send({ error: err.message })
-})
+  initializeMiddleware(){
+    this.app.use(express.urlencoded({ extended: true }))
+    this.app.use(express.json())
+  }
 
-function run(){
-    server.listen(port, () => {
-        console.log(chalk.blue(`SERVER LISTENING ON PORT ${chalk.green(port)}`))
-    })
+  initializeRoutes(){
+    this.app.use('/api', this.router.getRouter())
+  }
+
+  initializeErrorHandling(){
+    this.app.use((err, req, res, next) => {
+      debug(`Error: ${err.message}`)
+      if (err.message.match(/not found/)) {
+        return res.status(404).send({ error: err.message })
+      }
+      res.status(500).send({ error: err.message })
+    })    
+  }
+
+
+  run(){
+      this.server.listen(this.port, () => {
+          console.log(chalk.blue(`SERVER LISTENING ON PORT ${chalk.green(this.port)}`))
+      })
+  }
 }
 
 
-module.exports = { run }
+module.exports = Server

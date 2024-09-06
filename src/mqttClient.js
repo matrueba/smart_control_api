@@ -1,12 +1,7 @@
 'use strict'
-
-/**
- * Module dependencies
- */
 const mqtt = require('mqtt')
 const chalk = require('chalk')
 const debug = require('debug')('MQTTClient')
-const emitter = require('./emitter').mqttEmitter
 
 /**
  * MQTT client that receive the mqtt data
@@ -23,7 +18,8 @@ class MqttClient {
    * @param {Int} [port] - MQTT port
    * @param {Int} [topics] - MQTT Topics Subscription
    */
-  constructor () {
+  constructor (emitter) {
+    this.emitter = emitter
     this.mqttClient = null
     this.mqttClientId = 'smartbox_mqtt_client_' + Math.random().toString(16).substr(2, 8)
     this.host = 'mqtt://' + process.env.MQTT_HOST || '127.0.0.1'
@@ -73,7 +69,7 @@ class MqttClient {
       debug(`MQTT client ${chalk.green(this.mqttClientId)} disconnected`)
     })
 
-    emitter.on('publish_mqtt', message => {
+    this.emitter.on('publish_mqtt', message => {
       debug(`Publish topic: ${message.topic}`)
       debug(`Publish message: ${message.payload}`)
       this.mqttClient.publish(message.topic, JSON.stringify(message.payload), {qos: 1, retain: false})
@@ -89,7 +85,6 @@ class MqttClient {
 
   handleMqtt(topic, message){
     const payload = JSON.parse(message)
-    console.log(payload)
     if (topic.match(/DEVICE\/.*\/COMMAND/)) {
         if (payload.token === this.token){
             switch(payload.command){
@@ -116,7 +111,7 @@ class MqttClient {
                   const message = {
                     "pump_started": true
                   }
-                  emitter.emit('pump_status', message)
+                  this.emitter.emit('pump_status', message)
                 }
                 break
                 case "stop_pump":
@@ -124,29 +119,23 @@ class MqttClient {
                       const message = {
                         "pump_started": false,
                       }
-                      emitter.emit('pump_status', message)
+                      this.emitter.emit('pump_status', message)
                     }
                 break
             }
         }   
     }
     if (topic.match(/DEVICE\/.*\/DATA\/TEMPERATURE/)) {
-      debug(payload)
-        
-        
+      this.emitter.emit('temperature', payload)
     }
     if (topic.match(/DEVICE\/.*\/DATA\/GROUND_HUMIDITY/)) {
-      emitter.emit('ground_humidity', payload)
-        
-        
+      this.emitter.emit('ground_humidity', payload)
     }
     if (topic.match(/DEVICE\/.*\/DATA\/AIR_HUMIDITY/)) {
-      debug(payload)
-      
-      
-  }
+      this.emitter.emit('air_humidity', payload) 
+    }
     if (topic.match(/DEVICE\/.*\/DATA\/WATER_LEVEL/)) {
-        emitter.emit('mqtt_data', payload)          
+      this.emitter.emit('water_level', payload)          
     }
   }
 

@@ -1,15 +1,15 @@
 'use strict'
-
-const mqttEmitter = require('./emitter').mqttEmitter
-const controlEmitter = require('./emitter').controlEmitter
 const debug = require('debug')('main-control')
 
 
 class MainContol{
 
-    constructor () {
-
-        this.last_humidity_values = [] //Store last 10 ground humidity values
+    constructor (emitter) {
+        this.emitter = emitter
+        this.last_ground_humidity_values = [] //Store last 10 ground humidity values
+        this.last_temperature_values = [] //Store last 10 temperature values
+        this.last_air_humidity_values = [] //Store last 10 air humidity values
+        this.last_water_level_values = [] //Store last 10 water level values
         this.control_auto = false  //Define if control auto is enabled
         this.pump_started = false  //Define if pump is started
         this.enable_start = true   //Define pump start is enabled
@@ -21,18 +21,38 @@ class MainContol{
     }
 
     run(){
-
         //event triggered when ground humidity value is received and store in last data array
-        mqttEmitter.on('ground_humidity', message => {
-            debug(`Ground humidity value received: ${message.value}`)
-            if (this.last_humidity_values.length >= 10){
-                this.last_humidity_values.shift()  
+        this.emitter.on('temperature', message => {
+            debug(`Temperature value received: ${message.value}`)
+            if (this.last_temperature_values.length >= 10){
+                this.last_temperature_values.shift()  
             }
-            this.last_humidity_values.push(message.value) 
+            this.last_temperature_values.push(message.value) 
+        })
+        this.emitter.on('ground_humidity', message => {
+            debug(`Ground humidity value received: ${message.value}`)
+            if (this.last_ground_humidity_values.length >= 10){
+                this.last_ground_humidity_values.shift()  
+            }
+            this.last_ground_humidity_values.push(message.value) 
+        })
+        this.emitter.on('air_humidity', message => {
+            debug(`Air humidity value received: ${message.value}`)
+            if (this.last_air_humidity_values.length >= 10){
+                this.last_air_humidity_values.shift()  
+            }
+            this.last_air_humidity_values.push(message.value) 
+        })
+        this.emitter.on('water_level', message => {
+            debug(`Water level value received: ${message.value}`)
+            if (this.last_water_level_values.length >= 10){
+                this.last_water_level_values.shift()  
+            }
+            this.last_water_level_values.push(message.value) 
         })
 
         //event triggered when change in pump status is received
-        mqttEmitter.on('pump_status', message => {
+        this.emitter.on('pump_status', message => {
             debug(`Pump status info received: ${message.pump_started}`)
             this.pump_started = message.pump_started         
             if (this.pump_started === true){
@@ -43,7 +63,7 @@ class MainContol{
         })
 
         //event triggered when request is received
-        controlEmitter.on('server_request', message => {
+        this.emitter.on('server_request', message => {
             debug(`Request come from: ${message.type}`)
             switch(message.type){
                 case "control_auto":
@@ -68,7 +88,7 @@ class MainContol{
                             },
                             "topic": "SERVER/COMMAND"
                         }
-                        mqttEmitter.emit('publish_mqtt', message)
+                        this.emitter.emit('publish_mqtt', message)
                     }
                 break
                 case "stop_pump":
@@ -82,7 +102,7 @@ class MainContol{
                         },
                             "topic": "SERVER/COMMAND"
                         }
-                        mqttEmitter.emit('publish_mqtt', message)
+                        this.emitter.emit('publish_mqtt', message)
                     }
                 break
             }
@@ -122,13 +142,13 @@ class MainContol{
                     },
                     "topic": "SERVER/COMMAND"
                 }
-                mqttEmitter.emit('publish_mqtt', message)               
+                this.emitter.emit('publish_mqtt', message)               
             }
         }
     }
 
     check_start_pump(){
-        let humidity_counter = 0
+        let ground_humidity_counter = 0
         const date = new Date()
         const current_hour = date.getHours()
         const current_minute = date.getMinutes()
@@ -138,15 +158,15 @@ class MainContol{
             //Check the time to start irrigation
             if ((current_hour == this.start_hour) && (current_minute >= this.start_minutes)){
                 //Check if at least 10 ground humidity values have been received
-                if(this.last_humidity_values.length == 10) {
+                if(this.last_ground_humidity_values.length == 10) {
                     //Check the quantity of values under threshold
                     for (let i=0; i <10; i++){
-                        if (this.last_humidity_values[i] < 50){
-                            humidity_counter += 1
+                        if (this.last_ground_humidity_values[i] < 50){
+                            ground_humidity_counter += 1
                         }
                     }
                     //If quantity of values under threshold is greater than value start pump
-                    if (humidity_counter >=9){
+                    if (ground_humidity_counter >=9){
                         const message = {
                             "payload": {
                                 "timestamp": Date.now(),
@@ -156,7 +176,7 @@ class MainContol{
                             },
                             "topic": "SERVER/COMMAND"
                         }
-                        mqttEmitter.emit('publish_mqtt', message)
+                        this.emitter.emit('publish_mqtt', message)
                     }
                 }
             }
