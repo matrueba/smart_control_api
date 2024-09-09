@@ -23,14 +23,16 @@ class Router {
   }
 
   initializeRoutes() {
-    this.router.get('/', this.getStatus.bind(this))
+    this.router.get('/', this.getServerStatus.bind(this))
+    this.router.post('/control_manual/:deveui', this.postControlManual.bind(this))
     this.router.post('/control_auto/:deveui', this.postControlAuto.bind(this))
     this.router.post('/start_pump/:deveui', this.startPump.bind(this))
     this.router.post('/stop_pump/:deveui', this.stopPump.bind(this))
-    this.router.get('/ground_humidity/:deveui', this.getGroundHumidity.bind(this))
+    this.router.get('/sensor_values/:deveui', this.getSensorValues.bind(this))
+    this.router.get('/last_sensor_values/:deveui', this.getLastSensorValues.bind(this))
   }
 
-  async getStatus(req, res, next) {
+  async getServerStatus(req, res, next) {
     debug('A request has come to /')
     try{
       const server = {"res": "API is running"}
@@ -41,50 +43,87 @@ class Router {
   }
 
   async postControlAuto(req, res, next){
+    let status = 200
     const { deveui } = req.params
-    debug(`A request has come to /control/${deveui}`)
+    debug(`A request has come to /control_auto/${deveui}`)
     debug(`Request device deveui: ${deveui}`)
     try {
-      const message = {"type": "control_auto", "data": req.body}
-      this.emitter.emit('server_request', message) //replace by direct function of control
+      const result = this.control.goToAuto(deveui)
+      if (!result.value){
+        status = 400
+      }
     } catch (e) {
       next(e)
     }
-    res.send(200)
+    res.send(status)
+  }
+
+  async postControlManual(req, res, next){
+    let status = 200
+    const { deveui } = req.params
+    debug(`A request has come to /control_manual/${deveui}`)
+    debug(`Request device deveui: ${deveui}`)
+    try {
+      const result = this.control.goToManual(deveui)
+      if (!result.value){
+        status = 400
+      }
+    } catch (e) {
+      next(e)
+    }
+    res.send(status)
   }
 
   async startPump(req, res, next){
     const { deveui } = req.params
+    let status = 200
     debug(`A request has come to /start_pump/${deveui}`)
     debug(`Request device deveui: ${deveui}`)
     try {
-      const message = {"type": "start_pump", "data": ""}
-      this.emitter.emit('server_request', message)
+      const result = this.control.startPump(deveui)
+      if (!result.value){
+        status = 400
+      }
     } catch (e) {
       next(e)
     }
-    res.send(200)
+    res.send(status)
   }
 
   async stopPump(req, res, next){
     const { deveui } = req.params
+    let status = 200
     debug(`A request has come to /stop_pump/${deveui}`)
     debug(`Request device deveui: ${deveui}`)
     try {
-      const message = {"type": "stop_pump", "data": ""}
-      this.emitter.emit('server_request', message)
+      const result = this.control.stopPump(deveui)
+      if (!result.value){
+        status = 400
+      }
+    } catch (e) {
+      next(e)
+    }
+    res.send(status)
+  }
+
+  async getSensorValues(req, res, next){
+    const { deveui } = req.params
+    debug(`A request has come to /sensor_values/${deveui}`)
+    debug(`Request device deveui: ${deveui}`)
+    try {
+      const groundHumidityValue = this.control.last_ground_humidity_values[0]
     } catch (e) {
       next(e)
     }
     res.send(200)
   }
 
-  async getGroundHumidity(req, res, next){
+  async getLastSensorValues(req, res, next){
     const { deveui } = req.params
-    debug(`A request has come to /ground_humidity/${deveui}`)
+    debug(`A request has come to /last_sensor_values/${deveui}`)
     debug(`Request device deveui: ${deveui}`)
     try {
-      const groundHumidityValue = this.control.last_ground_humidity_values[0]
+      const groundHumidityValue = this.control.last_ground_humidity_values
     } catch (e) {
       next(e)
     }

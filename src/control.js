@@ -51,15 +51,26 @@ class MainContol{
             this.last_water_level_values.push(message.value) 
         })
 
+
         //event triggered when change in pump status is received
-        this.emitter.on('pump_status', message => {
-            debug(`Pump status info received: ${message.pump_started}`)
-            this.pump_started = message.pump_started         
-            if (this.pump_started === true){
-                this.start_pump_date = new Date()
-            }else if (this.pump_started === false){
-                this.enable_start = false
+        this.emitter.on('command_result', payload => {
+            if (payload.value === "OK"){
+            switch(payload.command_response){ 
+                case "start_pump":
+                    this.manualPumpStatus(payload, true)
+                break
+                case "stop_pump":
+                    this.manualPumpStatus(payload, false)
+                break
+                case "control_auto":
+                    this.controlModeStatus(payload, true)
+                break
+                case "control_manual":
+                    this.controlModeStatus(payload, false)
+                break
+                }
             }
+            //PUBLSH GENERAL STATE ON MQTT
         })
 
         //event triggered when request is received
@@ -77,42 +88,150 @@ class MainContol{
                         this.control_auto = false 
                     }
                 break
-                case "start_pump":
-                    if (this.control_auto == false){
-                        const message = {
-                            "payload": {
-                                "timestamp": Date.now(),
-                                "token": process.env.TOKEN,
-                                "source": "system_control",
-                                "command": "start_pump"
-                            },
-                            "topic": "SERVER/COMMAND"
-                        }
-                        this.emitter.emit('publish_mqtt', message)
-                    }
-                break
-                case "stop_pump":
-                    if (this.control_auto == false){
-                        const message = {
-                            "payload": {
-                            "timestamp": Date.now(),
-                            "token": process.env.TOKEN,
-                            "source": "system_control",
-                            "command": "stop_pump"
-                        },
-                            "topic": "SERVER/COMMAND"
-                        }
-                        this.emitter.emit('publish_mqtt', message)
-                    }
-                break
             }
         })
 
         setInterval(() => {
-            this.check_start_pump()
-            this.check_stop_pump()
-            this.restart_enable()
+            //this.check_start_pump()
+            //this.check_stop_pump()
+            //this.restart_enable()
         }, 1000)
+    }
+
+    goToManual(deveui){
+        let result
+        try { 
+            const message = {
+                "payload": {
+                    "timestamp": Date.now(),
+                    "token": process.env.TOKEN,
+                    "source": "system_control",
+                    "command": "control_manual"
+                },
+                "topic": `CONTROL/COMMAND`
+            }
+            this.emitter.emit('publish_mqtt', message)
+            result = {
+                "value": true,
+                "mesage": "Manual mode command sent"
+            }
+        } catch (error) {
+            result = {
+                "value": false,
+                "mesage": `Unable to procces manual mode request: ${error}`
+            }
+            return result
+        }
+        return result
+    }
+
+    goToAuto(deveui){
+        let result
+        try { 
+            const message = {
+                "payload": {
+                    "timestamp": Date.now(),
+                    "token": process.env.TOKEN,
+                    "source": "system_control",
+                    "command": "control_auto"
+                },
+                "topic": `CONTROL/COMMAND`
+            }
+            this.emitter.emit('publish_mqtt', message)
+            result = {
+                "value": true,
+                "mesage": "Auto mode command sent"
+            }
+        
+        } catch (error) {
+            result = {
+                "value": false,
+                "mesage": `Unable to procces auto mode request: ${error}`
+            }
+            return result
+        }
+        return result
+    }
+
+    startPump(deveui){
+        let result
+        try {
+            result = {
+                "value": false,
+                "mesage": "Start is in auto mode"
+            }
+            if (this.control_auto == false){
+                const message = {
+                    "payload": {
+                        "timestamp": Date.now(),
+                        "token": process.env.TOKEN,
+                        "source": "system_control",
+                        "command": "start_pump"
+                    },
+                    "topic": `CONTROL/COMMAND`
+                }
+                this.emitter.emit('publish_mqtt', message)
+                result = {
+                    "value": true,
+                    "mesage": "Start Pump command sent"
+                }
+            }
+        } catch (error) {
+            result = {
+                "value": false,
+                "mesage": `Unable to procces start pump request: ${error}`
+            }
+            return result
+        }
+        return result
+    }
+
+    stopPump(deveui){
+        let result
+        try {
+            result = {
+                "value": false,
+                "mesage": "Start is in auto mode"
+            }
+            if (this.control_auto == false){
+                const message = {
+                    "payload": {
+                        "timestamp": Date.now(),
+                        "token": process.env.TOKEN,
+                        "source": "system_control",
+                        "command": "stop_pump"
+                    },
+                    "topic": `CONTROL/COMMAND`
+                }
+                this.emitter.emit('publish_mqtt', message)
+                result = {
+                    "value": true,
+                    "mesage": "Stop Pump command sent"
+                }
+            } 
+        } catch (error){
+            result = {
+                "value": false,
+                "mesage": `Unable to procces stop pump request: ${error}`
+            }
+            return result
+        }
+        return result
+    }
+
+    //event triggered when change in pump status is received
+    manualPumpStatus(message, mode){
+        debug(`Pump status info received: ${mode}`)     
+        if (this.pump_started === true){
+            this.start_pump_date = new Date()
+        } else {
+            this.enable_start = false
+        }
+    }
+
+    controlModeStatus(message, mode){
+        debug(`Control Auto mode info received: ${mode}`)       
+        this.control_auto = mode
     }
 
     restart_enable(){
@@ -140,7 +259,7 @@ class MainContol{
                         "source": "system_control",
                         "command": "stop_pump"
                     },
-                    "topic": "SERVER/COMMAND"
+                    "topic": "CONTROL/COMMAND"
                 }
                 this.emitter.emit('publish_mqtt', message)               
             }
@@ -174,7 +293,7 @@ class MainContol{
                                 "source": "system_control",
                                 "command": "start_pump"
                             },
-                            "topic": "SERVER/COMMAND"
+                            "topic": "CONTROL/COMMAND"
                         }
                         this.emitter.emit('publish_mqtt', message)
                     }

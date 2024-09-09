@@ -105,24 +105,7 @@ class MqttClient {
     }
     if (topic.match(/DEVICE\/.*\/RESULT/)) {
         if (payload.token === this.token){
-            switch(payload.command_response){
-                case "start_pump":
-                if (payload.value === "OK"){
-                  const message = {
-                    "pump_started": true
-                  }
-                  this.emitter.emit('pump_status', message)
-                }
-                break
-                case "stop_pump":
-                    if (payload.value == "OK"){
-                      const message = {
-                        "pump_started": false,
-                      }
-                      this.emitter.emit('pump_status', message)
-                    }
-                break
-            }
+          this.emitter.emit('command_result', payload)
         }   
     }
     if (topic.match(/DEVICE\/.*\/DATA\/TEMPERATURE/)) {
