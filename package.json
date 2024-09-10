@@ -16,6 +16,7 @@
     "express-asyncify": "^1.0.1",
     "http": "^0.0.1-security",
     "mqtt": "^4.2.8",
-    "nodemon": "^2.0.15"
+    "nodemon": "^2.0.15",
+    "uuid": "^10.0.0"
   }
 }

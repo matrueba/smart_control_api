@@ -108,26 +108,38 @@ class Router {
 
   async getSensorValues(req, res, next){
     const { deveui } = req.params
+    let message
     debug(`A request has come to /sensor_values/${deveui}`)
     debug(`Request device deveui: ${deveui}`)
     try {
-      const groundHumidityValue = this.control.last_ground_humidity_values[0]
+      message = {
+        ground_humidity: this.control.last_ground_humidity_values[0],
+        air_humididty: this.control.last_air_humidity_values[0],
+        temperature: this.control.last_temperature_values[0],
+        water_level: this.control.last_water_level_values[0]
+      }
     } catch (e) {
       next(e)
     }
-    res.send(200)
+    res.send(message, 200)
   }
 
   async getLastSensorValues(req, res, next){
     const { deveui } = req.params
+    let message
     debug(`A request has come to /last_sensor_values/${deveui}`)
     debug(`Request device deveui: ${deveui}`)
     try {
-      const groundHumidityValue = this.control.last_ground_humidity_values
+      message = {
+        ground_humidity: this.control.last_ground_humidity_values,
+        air_humididty: this.control.last_air_humidity_values,
+        temperature: this.control.last_temperature_values,
+        water_level: this.control.last_water_level_values
+      }
     } catch (e) {
       next(e)
     }
-    res.send(200)
+    res.send(message, 200)
   } 
 
   getRouter() {

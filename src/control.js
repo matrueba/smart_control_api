@@ -1,15 +1,16 @@
 'use strict'
 const debug = require('debug')('main-control')
+const calculateMean = require('./utils/commonUtils').calculateMean
 
 
 class MainContol{
 
     constructor (emitter) {
         this.emitter = emitter
-        this.last_ground_humidity_values = [] //Store last 10 ground humidity values
-        this.last_temperature_values = [] //Store last 10 temperature values
-        this.last_air_humidity_values = [] //Store last 10 air humidity values
-        this.last_water_level_values = [] //Store last 10 water level values
+        this.last_ground_humidity_values = [0] //Store last 10 ground humidity values
+        this.last_temperature_values = [0] //Store last 10 temperature values
+        this.last_air_humidity_values = [0] //Store last 10 air humidity values
+        this.last_water_level_values = [0] //Store last 10 water level values
         this.control_auto = false  //Define if control auto is enabled
         this.pump_started = false  //Define if pump is started
         this.enable_start = true   //Define pump start is enabled
@@ -18,9 +19,18 @@ class MainContol{
         this.start_pump_date = 0 //Define the time when pump started last time
         this.max_pump_time = parseInt(process.env.MAX_PUMP_TIME)   //Define the maximum time the pump can be running
         this.min_time_2_restart = parseInt(process.env.MIN_TIME_TO_RESTART)  //Define the minimum time since pump were started to enable again
+        this.max_water_value = parseInt(process.env.MAX_WATER_VALUE) || 15
     }
 
     run(){
+
+        setInterval(() => {
+            this.check_start_pump()
+            this.check_stop_pump()
+            this.restart_enable()
+        }, 1000)
+
+
         //event triggered when ground humidity value is received and store in last data array
         this.emitter.on('temperature', message => {
             debug(`Temperature value received: ${message.value}`)
@@ -52,7 +62,23 @@ class MainContol{
         })
 
 
-        //event triggered when change in pump status is received
+        this.emitter.on('command', payload => {
+            switch(payload.command){
+                case "discover":
+                    const publishTopic = "SERVER/RESULT"
+                    const message = {
+                        "timestamp": Date.now(),
+                        "token": payload.token,
+                        "source": "system_control",
+                        "command_response": payload.command,
+                        "value": "OK"
+                    }    
+                    this.mqttClient.publish(publishTopic, JSON.stringify(message), {qos: 1, retain: false})
+                break
+            }
+        })
+
+
         this.emitter.on('command_result', payload => {
             if (payload.value === "OK"){
             switch(payload.command_response){ 
@@ -72,30 +98,6 @@ class MainContol{
             }
             //PUBLSH GENERAL STATE ON MQTT
         })
-
-        //event triggered when request is received
-        this.emitter.on('server_request', message => {
-            debug(`Request come from: ${message.type}`)
-            switch(message.type){
-                case "control_auto":
-                    debug(`Control auto: ${message.data}`)
-                    if (message.data.mode === 'auto'){             
-                        this.control_auto = true 
-                        this.start_minutes = message.data.activation_minute
-                        this.start_hour = message.data.activation_hour
-                    }
-                    else if (message.data.mode === 'manual'){
-                        this.control_auto = false 
-                    }
-                break
-            }
-        })
-
-        setInterval(() => {
-            //this.check_start_pump()
-            //this.check_stop_pump()
-            //this.restart_enable()
-        }, 1000)
     }
 
     goToManual(deveui){
@@ -230,12 +232,16 @@ class MainContol{
     }
 
     controlModeStatus(message, mode){
-        debug(`Control Auto mode info received: ${mode}`)       
+        debug(`Control Auto mode info received: ${mode}`)
         this.control_auto = mode
+        if (mode){
+            this.start_minutes = message.data.activation_minute
+            this.start_hour = message.data.activation_hour
+        }
     }
 
+    //Enable the capability to start pump once current time is above to min time to restart
     restart_enable(){
-        //Enable the capability to start pup once current time is above to min time to restart
         const current_date = new Date()
         if ((this.pump_started == false) && (this.enable_start == false)){
             if (current_date >=  new Date(this.start_pump_date.getTime() + this.min_time_2_restart*1000)){
@@ -245,13 +251,12 @@ class MainContol{
     }
 
     check_stop_pump(){
-        const water_level = 10 // temporal fix variable
         //If pump is started and control is auto
         if ((this.pump_started == true) && (this.control_auto == true)){     
             const current_date = new Date()
             const pump_time = (current_date  - this.start_pump_date) / 1000
             //If water level is greater than threshold o max pump time is exceeded stop pump
-            if ((pump_time >= this.max_pump_time) || (water_level > 15)){
+            if ((pump_time >= this.max_pump_time) || (calculateMean(this.last_water_level_values) > this.max_water_value)){
                 const message = {
                     "payload": {
                         "timestamp": Date.now(),
@@ -271,7 +276,6 @@ class MainContol{
         const date = new Date()
         const current_hour = date.getHours()
         const current_minute = date.getMinutes()
-    
         // Check if auto mode is enabled and pump is not working
         if ((this.control_auto == true) && (this.pump_started == false) && (this.enable_start == true)) {   
             //Check the time to start irrigation

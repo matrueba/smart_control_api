@@ -61,7 +61,7 @@ class MqttClient {
 
     this.mqttClient.on('message', (topic, message) => {
       debug(`MQTT message received with topic: ${topic}`)
-      debug(`MQTT message received with message: ${topic}`)
+      debug(`MQTT message received with message: ${message}`)
       this.handleMqtt(topic, message)
     })
 
@@ -85,28 +85,13 @@ class MqttClient {
 
   handleMqtt(topic, message){
     const payload = JSON.parse(message)
-    if (topic.match(/DEVICE\/.*\/COMMAND/)) {
-        if (payload.token === this.token){
-            switch(payload.command){
-                case "discover":
-                    const publishTopic = "SERVER/RESULT"
-                    const message = {
-                        "timestamp": Date.now(),
-                        "token": payload.token,
-                        "source": "system_control",
-                        "command_response": "discover",
-                        "value": "OK"
-                    }    
-                    this.mqttClient.publish(publishTopic, JSON.stringify(message), {qos: 1, retain: false})
-                break
-            }
-        }
-    
-    }
-    if (topic.match(/DEVICE\/.*\/RESULT/)) {
-        if (payload.token === this.token){
-          this.emitter.emit('command_result', payload)
-        }   
+    if (payload.token === this.token){
+      if (topic.match(/DEVICE\/.*\/COMMAND/)) {
+        this.emitter.emit('command', payload)
+      }
+      if (topic.match(/DEVICE\/.*\/RESULT/)) {
+        this.emitter.emit('command_result', payload)
+      }   
     }
     if (topic.match(/DEVICE\/.*\/DATA\/TEMPERATURE/)) {
       this.emitter.emit('temperature', payload)

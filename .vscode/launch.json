@@ -17,6 +17,7 @@
                 "TOKEN": "abcdefg",
                 "MAX_PUMP_TIME": "30",
                 "MIN_TIME_TO_RESTART": "60", //86400 1 day
+                "MAX_WATER_VALUE": "15",
                 "DEBUG": "*"
             }
         }
