@@ -91,60 +91,32 @@ class MainContol{
                 case "control_auto":
                     this.controlModeStatus(payload, true)
                 break
-                case "control_manual":
-                    this.controlModeStatus(payload, false)
-                break
                 }
             }
             //PUBLSH GENERAL STATE ON MQTT
         })
     }
 
-    goToManual(deveui){
+    controlAuto(deveui, data){
         let result
-        try { 
+        try {
             const message = {
                 "payload": {
                     "timestamp": Date.now(),
                     "token": process.env.TOKEN,
                     "source": "system_control",
-                    "command": "control_manual"
+                    "command": "manual"
                 },
                 "topic": `CONTROL/COMMAND`
             }
-            this.emitter.emit('publish_mqtt', message)
-            result = {
-                "value": true,
-                "mesage": "Manual mode command sent"
-            }
-        } catch (error) {
-            result = {
-                "value": false,
-                "mesage": `Unable to procces manual mode request: ${error}`
-            }
-            return result
-        }
-        return result
-    }
-
-    goToAuto(deveui){
-        let result
-        try { 
-            const message = {
-                "payload": {
-                    "timestamp": Date.now(),
-                    "token": process.env.TOKEN,
-                    "source": "system_control",
-                    "command": "control_auto"
-                },
-                "topic": `CONTROL/COMMAND`
+            if (data.mode == "auto"){
+                message.payload.command = "auto"
             }
             this.emitter.emit('publish_mqtt', message)
             result = {
                 "value": true,
                 "mesage": "Auto mode command sent"
             }
-        
         } catch (error) {
             result = {
                 "value": false,
@@ -237,6 +209,7 @@ class MainContol{
         if (mode){
             this.start_minutes = message.data.activation_minute
             this.start_hour = message.data.activation_hour
+            //Si falla el result actualizar resto valores
         }
     }
 

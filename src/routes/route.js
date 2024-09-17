@@ -24,7 +24,6 @@ class Router {
 
   initializeRoutes() {
     this.router.get('/', this.getServerStatus.bind(this))
-    this.router.post('/control_manual/:deveui', this.postControlManual.bind(this))
     this.router.post('/control_auto/:deveui', this.postControlAuto.bind(this))
     this.router.post('/start_pump/:deveui', this.startPump.bind(this))
     this.router.post('/stop_pump/:deveui', this.stopPump.bind(this))
@@ -48,23 +47,7 @@ class Router {
     debug(`A request has come to /control_auto/${deveui}`)
     debug(`Request device deveui: ${deveui}`)
     try {
-      const result = this.control.goToAuto(deveui)
-      if (!result.value){
-        status = 400
-      }
-    } catch (e) {
-      next(e)
-    }
-    res.send(status)
-  }
-
-  async postControlManual(req, res, next){
-    let status = 200
-    const { deveui } = req.params
-    debug(`A request has come to /control_manual/${deveui}`)
-    debug(`Request device deveui: ${deveui}`)
-    try {
-      const result = this.control.goToManual(deveui)
+      const result = this.control.goToAuto(deveui, req.body)
       if (!result.value){
         status = 400
       }
