@@ -91,6 +91,9 @@ class MainContol{
                 case "control_auto":
                     this.controlModeStatus(payload, true)
                 break
+                case "control_manual":
+                    this.controlModeStatus(payload, false)
+                break
                 }
             }
             //PUBLSH GENERAL STATE ON MQTT
@@ -105,12 +108,13 @@ class MainContol{
                     "timestamp": Date.now(),
                     "token": process.env.TOKEN,
                     "source": "system_control",
-                    "command": "manual"
+                    "command": "control_manual",
+                    "params": data
                 },
                 "topic": `CONTROL/COMMAND`
             }
             if (data.mode == "auto"){
-                message.payload.command = "auto"
+                message.payload.command = "control_auto"
             }
             this.emitter.emit('publish_mqtt', message)
             result = {
@@ -127,27 +131,29 @@ class MainContol{
         return result
     }
 
-    startPump(deveui){
+    handlePump(deveui, data){
         let result
+        let command = "stop_pump"
         try {
             result = {
                 "value": false,
                 "mesage": "Start is in auto mode"
             }
+            if (data.start === true) command = "start_pump"
             if (this.control_auto == false){
                 const message = {
                     "payload": {
                         "timestamp": Date.now(),
                         "token": process.env.TOKEN,
                         "source": "system_control",
-                        "command": "start_pump"
+                        "command": command
                     },
                     "topic": `CONTROL/COMMAND`
                 }
                 this.emitter.emit('publish_mqtt', message)
                 result = {
                     "value": true,
-                    "mesage": "Start Pump command sent"
+                    "mesage": `${command} command sent`
                 }
             }
         } catch (error) {
@@ -160,43 +166,11 @@ class MainContol{
         return result
     }
 
-    stopPump(deveui){
-        let result
-        try {
-            result = {
-                "value": false,
-                "mesage": "Start is in auto mode"
-            }
-            if (this.control_auto == false){
-                const message = {
-                    "payload": {
-                        "timestamp": Date.now(),
-                        "token": process.env.TOKEN,
-                        "source": "system_control",
-                        "command": "stop_pump"
-                    },
-                    "topic": `CONTROL/COMMAND`
-                }
-                this.emitter.emit('publish_mqtt', message)
-                result = {
-                    "value": true,
-                    "mesage": "Stop Pump command sent"
-                }
-            } 
-        } catch (error){
-            result = {
-                "value": false,
-                "mesage": `Unable to procces stop pump request: ${error}`
-            }
-            return result
-        }
-        return result
-    }
-
     //event triggered when change in pump status is received
     manualPumpStatus(message, mode){
-        debug(`Pump status info received: ${mode}`)     
-        if (this.pump_started === true){
+        debug(`Pump status info received: ${mode}`)
+        this.pump_started = mode
+        if (mode === true){
             this.start_pump_date = new Date()
         } else {
             this.enable_start = false
@@ -207,9 +181,8 @@ class MainContol{
         debug(`Control Auto mode info received: ${mode}`)
         this.control_auto = mode
         if (mode){
-            this.start_minutes = message.data.activation_minute
-            this.start_hour = message.data.activation_hour
-            //Si falla el result actualizar resto valores
+            this.start_minutes = message.params.activationMinute
+            this.start_hour = message.params.activationHour
         }
     }
 
@@ -217,7 +190,7 @@ class MainContol{
     restart_enable(){
         const current_date = new Date()
         if ((this.pump_started == false) && (this.enable_start == false)){
-            if (current_date >=  new Date(this.start_pump_date.getTime() + this.min_time_2_restart*1000)){
+            if (current_date >=  new Date(this.start_pump_date + this.min_time_2_restart*1000)){
                 this.enable_start = true
             }
         }
@@ -229,7 +202,7 @@ class MainContol{
             const current_date = new Date()
             const pump_time = (current_date  - this.start_pump_date) / 1000
             //If water level is greater than threshold o max pump time is exceeded stop pump
-            if ((pump_time >= this.max_pump_time) || (calculateMean(this.last_water_level_values) > this.max_water_value)){
+            if ((pump_time >= this.max_pump_time * 1000) || (calculateMean(this.last_water_level_values) > this.max_water_value)){
                 const message = {
                     "payload": {
                         "timestamp": Date.now(),
@@ -280,8 +253,7 @@ class MainContol{
     }
 
     periodicPublicStatus(){
-        //Publish internal configuration and status to monitor in apps
-        // is better take the information of the app directly from server
+        //Publish info to retrieve context if server is down
         const statusMsg = {
             "control_mode": this.control_auto === true ? "auto" : "manual",
             "start_enable": this.enable_start,

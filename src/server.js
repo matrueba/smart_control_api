@@ -1,9 +1,18 @@
 'use strict'
+const https = require('https')
 const http = require('http')
 const express = require('express')
 const chalk = require('chalk')
 const debug = require('debug')('smartbox-api')
 const Router = require('./routes/route')
+const fs = require('fs')
+const path = require('path')
+
+
+const options = {
+  key: fs.readFileSync(path.join(__dirname, 'certs/server.key')),
+  cert: fs.readFileSync(path.join(__dirname, 'certs/server.crt'))
+}
 
 
 class Server {
